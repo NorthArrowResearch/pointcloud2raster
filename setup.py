@@ -10,12 +10,12 @@ import re
 from setuptools import setup
 
 install_requires = [
-    'argparse', 'gdal', 'numpy'
+    'argparse', 'numpy'
 ]
 
 version = re.search(
       '^__version__\s*=\s*"(.*)"',
-      open('__version__.py').read(),
+      open('pointcloud2raster/__version__.py').read(),
       re.M
 ).group(1)
 
@@ -23,7 +23,7 @@ with open("README.md", "rb") as f:
       long_descr = f.read().decode("utf-8")
 
 setup(
-      name='vector2raster',
+      name='pointcloud2raster',
       description='A CSV pointcloud - to - raster tool',
       url='https://github.com/NorthArrowResearch/pointcloud2raster',
       author='Matt Reimer',
