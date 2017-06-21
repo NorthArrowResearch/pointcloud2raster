@@ -10,12 +10,12 @@ import re
 from setuptools import setup
 
 install_requires = [
-    'argparse', 'gdal'
+    'argparse', 'gdal', 'numpy'
 ]
 
 version = re.search(
       '^__version__\s*=\s*"(.*)"',
-      open('riverscapestools/__version__.py').read(),
+      open('__version__.py').read(),
       re.M
 ).group(1)
 
@@ -24,16 +24,16 @@ with open("README.md", "rb") as f:
 
 setup(
       name='vector2raster',
-      description='A vector 2 raster tool',
-      url='https://github.com/NorthArrowResearch/Vector2raster',
+      description='A CSV pointcloud - to - raster tool',
+      url='https://github.com/NorthArrowResearch/pointcloud2raster',
       author='Matt Reimer',
       author_email='matt@northarrowresearch.com',
       license='MIT',
-      packages=['vector2raster'],
+      packages=['pointcloud2raster'],
       zip_safe=False,
       install_requires=install_requires,
       entry_points={
-            "console_scripts": ['vector2raster = vector2raster.vector2raster:main']
+            "console_scripts": ['pointcloud2raster = pointcloud2raster.pointcloud2raster:main']
       },
       version=version,
       long_description=long_descr,
