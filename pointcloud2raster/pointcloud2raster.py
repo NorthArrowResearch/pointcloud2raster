@@ -36,33 +36,43 @@ def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, templ
     raw_max_x, raw_max_y, max_z = np.amax(my_data, axis=0)
     raw_min_x, raw_min_y, min_z = np.amin(my_data, axis=0)
 
-    buffer = 10
+    buffer = 0
 
-    top = math.ceil(raw_max_y / cellsize) * cellsize + buffer
-    bottom = math.floor(raw_min_y / cellsize) * cellsize - buffer
+    if templateRaster is not None:
+        raster = Raster(filepath=templateRaster)
+        cw = raster.cellWidth
+        ch = raster.cellHeight
+    else:
+        cw = cellsize
+        ch = cellsize
+    top = math.ceil(raw_max_y / abs(ch)) * abs(ch) + buffer
+    bottom = math.floor(raw_min_y / abs(ch)) * abs(ch) - buffer
 
-    left = math.floor(raw_min_x / cellsize) * cellsize - buffer
-    right = math.floor(raw_max_x / cellsize) * cellsize + buffer
+    left = math.floor(raw_min_x / cw) * cw - buffer
+    right = math.ceil(raw_max_x / cw) * cw + buffer
 
     Log.info("Setting up new Axes...")
-    newAxes = np.mgrid[bottom:top:cellsize, left:right:cellsize]
+    newAxes = np.mgrid[top:bottom:ch, left:right:cw]
 
     Log.info("Aligning with cell centers...")
-    points = my_data[:,[0,1]] + cellsize/2
+    points = my_data[:,[0,1]]
     data = my_data[:,2]
 
     Log.info("Gridding irregular data...")
-    newArray = griddata((points[:,1], points[:,0]), data, (newAxes[0],newAxes[1]), method='cubic', fill_value=np.nan)
 
-    Log.info("Writing Output Raster...")
-    if templateRaster is not None:
-        raster = Raster(filepath=templateRaster)
-        raster.setArray(newArray)
-        raster.write(sOutputRaster)
-    else:
-        raster = Raster(cellWidth=cellsize, array=newArray)
-        raster.write(sOutputRaster)
-    Log.info("Done.")
+    for method in ["cubic", "nearest", "linear"]:
+        newArray = griddata((points[:,1], points[:,0]), data, (newAxes[0],newAxes[1]), method=method, fill_value=np.nan)
+
+        Log.info("Writing Output Raster...")
+        extsplit = os.path.splitext(sOutputRaster)
+        newpath = os.path.join(os.path.dirname(sOutputRaster), extsplit[0] + "_" + method + extsplit[1])
+        if templateRaster is not None:
+            raster.setArray(newArray)
+            raster.write(newpath)
+        else:
+            raster = Raster(cellWidth=cellsize, array=newArray)
+            raster.write(newpath)
+        Log.info("Done.")
 
 
 
