@@ -67,6 +67,8 @@ def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, metho
     extsplit = os.path.splitext(sOutputRaster)
     newpath = os.path.join(os.path.dirname(sOutputRaster), extsplit[0] + extsplit[1])
 
+    raster.top = top
+    raster.left = left
     raster.setArray(newArray)
     raster.write(newpath)
 
