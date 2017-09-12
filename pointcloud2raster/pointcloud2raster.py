@@ -11,7 +11,7 @@ import math
 from raster import Raster
 gdal.UseExceptions()
 
-def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, templateRaster):
+def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, method, templateRaster):
     """
     Read here for more
     http://www.gdal.org/grid_tutorial.html
@@ -43,6 +43,7 @@ def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, templ
         cw = raster.cellWidth
         ch = raster.cellHeight
     else:
+        raster = Raster(cellWidth=cellsize)
         cw = cellsize
         ch = cellsize
     top = math.ceil(raw_max_y / abs(ch)) * abs(ch) + buffer
@@ -60,19 +61,16 @@ def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, templ
 
     Log.info("Gridding irregular data...")
 
-    for method in ["cubic", "nearest", "linear"]:
-        newArray = griddata((points[:,1], points[:,0]), data, (newAxes[0],newAxes[1]), method=method, fill_value=np.nan)
+    newArray = griddata((points[:,1], points[:,0]), data, (newAxes[0]+ ch/2,newAxes[1] + cw/2), method=method, fill_value=np.nan)
 
-        Log.info("Writing Output Raster...")
-        extsplit = os.path.splitext(sOutputRaster)
-        newpath = os.path.join(os.path.dirname(sOutputRaster), extsplit[0] + "_" + method + extsplit[1])
-        if templateRaster is not None:
-            raster.setArray(newArray)
-            raster.write(newpath)
-        else:
-            raster = Raster(cellWidth=cellsize, array=newArray)
-            raster.write(newpath)
-        Log.info("Done.")
+    Log.info("Writing Output Raster...")
+    extsplit = os.path.splitext(sOutputRaster)
+    newpath = os.path.join(os.path.dirname(sOutputRaster), extsplit[0] + extsplit[1])
+
+    raster.setArray(newArray)
+    raster.write(newpath)
+
+    Log.info("Done.")
 
 
 
@@ -101,6 +99,10 @@ def main():
                         help='column number to use for X (defaults to 1)',
                         default=3,
                         type=int)
+    parser.add_argument('--method',
+                        help='Method for griddata. One of "cubic", "linear", "nearest" Default: cubic',
+                        default="cubic",
+                        type=str)
     parser.add_argument('--templateraster',
                         help='Template Raster to use for meta values',
                         type=argparse.FileType('r'))
@@ -114,7 +116,7 @@ def main():
 
     try:
         # Now kick things off
-        GridRaster(args.csvfile.name, args.outputRaster, args.cellsize, args.xfield, args.yfield, args.zfield, args.templateraster.name)
+        GridRaster(args.csvfile.name, args.outputRaster, args.cellsize, args.xfield, args.yfield, args.zfield, args.method, args.templateraster.name)
     except AssertionError as e:
         log.error("Assertion Error", e)
         sys.exit(0)

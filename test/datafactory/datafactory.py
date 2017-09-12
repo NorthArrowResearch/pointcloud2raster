@@ -2,52 +2,16 @@
 
 from osgeo import gdal, osr
 import numpy as np
-from os import path
+from pointcloud2raster.raster import Raster
 import os
 import math
 import csv
 import random
 import argparse
 # this allows GDAL to throw Python Exceptions
-gdal.UseExceptions()
 
 proj = 'PROJCS["NAD_1983_2011_StatePlane_Arizona_Central_FIPS_0202",GEOGCS["GCS_NAD_1983_2011",DATUM["NAD_1983_2011",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["false_easting",213360.0],PARAMETER["false_northing",0.0],PARAMETER["central_meridian",-111.9166666666667],PARAMETER["scale_factor",0.9999],PARAMETER["latitude_of_origin",31.0],UNIT["Meter",1.0]]'
 
-class Raster:
-    def __init__(self, filepath):
-        gdal.UseExceptions()
-        self.errs = ""
-        self.filename = path.basename(filepath)
-        try:
-            src_ds = gdal.Open( filepath )
-        except RuntimeError, e:
-            print('Unable to open %s' % filepath)
-            exit(1)
-        try:
-            # Read Raster Properties
-            self.srcband = src_ds.GetRasterBand(1)
-            self.bands = src_ds.RasterCount
-            self.driver = src_ds.GetDriver().LongName
-            self.gt = src_ds.GetGeoTransform()
-
-            """ Turn a Raster with a single band into a 2D [x,y] = v array """
-            self.array = self.srcband.ReadAsArray()
-            self.dataType = self.srcband.DataType
-            self.band_array = self.srcband.ReadAsArray()
-            self.nodata = self.srcband.GetNoDataValue()
-            self.min = self.srcband.GetMinimum()
-            self.max = self.srcband.GetMaximum()
-            self.proj = src_ds.GetProjection()
-            self.left = self.gt[0]
-            self.cellWidth = self.gt[1]
-            self.top = self.gt[3]
-            self.cellHeight = self.gt[5]
-            self.cols = src_ds.RasterXSize
-            self.rows = src_ds.RasterYSize
-
-        except RuntimeError as e:
-            print('Could not retrieve meta Data for %s' % filepath)
-            exit(1)
 
 def array2rastercsv(array, outName, templateRaster, yoffset=0, xoffset=0, DataType=gdal.GDT_Float32):
     """
@@ -59,7 +23,6 @@ def array2rastercsv(array, outName, templateRaster, yoffset=0, xoffset=0, DataTy
     :return:
     """
     rastername = outName + ".tif"
-    csvname = outName + ".csv"
     matrixname = outName + ".matrix"
 
     # reversed_arr = array[::-1] # reverse array so the tif looks like the array
@@ -80,32 +43,36 @@ def array2rastercsv(array, outName, templateRaster, yoffset=0, xoffset=0, DataTy
     outRaster.SetProjection(proj)
     outband.FlushCache()
 
-
     # This array might be upside-down from GDAL's perspective
     newArr = array
 
-    # Now save the same file as a CSV
-    # First make a deep copy
-    with open(csvname, 'wb') as csvfile:
-        spamwriter = csv.writer(csvfile, delimiter=' ', quoting=csv.QUOTE_NONE)
-        # This is just a weird convention
-        counter = 5000
-        for idy, row in enumerate(newArr):
-            for idx, cell in enumerate(row):
-                counter += 1
-                for pt in range(0, random.randint(3,15)):
-                    cw = templateRaster.cellWidth
-                    ch = templateRaster.cellHeight
-                    val = cell + random.uniform(-0.2,0.2)
-                    left = idx * templateRaster.cellWidth + originX + (cw / 2) + random.uniform(-cw/2, cw/2)
-                    top = idy * templateRaster.cellHeight + originY + (ch / 2) + random.uniform(-ch/2, ch/2)
-                    spamwriter.writerow([left, top, val])
-
-
-
+    cw = templateRaster.cellWidth
+    ch = templateRaster.cellHeight
 
     # Now write a grid.
     np.savetxt(matrixname, newArr, fmt='%.3f', delimiter=",")
+
+    # Now save the same file as a CSV
+    csvname = outName + ".csv"
+    with open(csvname, 'wb') as csvfile:
+        spamwriter = csv.writer(csvfile, delimiter=' ', quoting=csv.QUOTE_NONE)
+        for idy, row in enumerate(newArr):
+            for idx, cell in enumerate(row):
+                left = idx * templateRaster.cellWidth + originX + (cw / 2)
+                top = idy * templateRaster.cellHeight + originY + (ch / 2)
+                spamwriter.writerow([left, top, cell])
+
+    # The cloud CSV has randomized tesselation
+    csvname = outName + "_cloud.csv"
+    with open(csvname, 'wb') as csvfile:
+        spamwriter = csv.writer(csvfile, delimiter=' ', quoting=csv.QUOTE_NONE)
+        for idy, row in enumerate(newArr):
+            for idx, cell in enumerate(row):
+                for pt in range(0, random.randint(3,15)):
+                    val = cell + random.uniform(-0.2,0.2)
+                    left = idx * templateRaster.cellWidth + originX + (cw / 2) + random.uniform( -cw / 2, cw / 2 )
+                    top = idy * templateRaster.cellHeight + originY + (ch / 2) + random.uniform( -ch / 2, ch / 2 )
+                    spamwriter.writerow([left, top, val])
 
 
 def slopeyArray(width, height, high, low):
@@ -125,6 +92,27 @@ def slopeyArray(width, height, high, low):
             array[idy][idx] = high - (high - low) *  (float(idx)/(width-1))
     return array
 
+
+
+def checkerBoardArray(width, height, high, low):
+    """
+    Creates a checkerboard pattern
+    :param width:
+    :param height:
+    :param high:
+    :param low:
+    :return:
+    """
+    gridsize = 10
+    high = float(high)
+    low = float(low)
+    array = np.empty((width, height))
+    for idy, row in enumerate(array):
+        for idx, cell in enumerate(row):
+            switch = bool((idx / gridsize) % 2) != bool((idy  / gridsize) % 2)
+            array[idy][idx] = high if switch else low
+
+    return array
 
 def squareHillArray(width, height, high, low):
     """
@@ -264,7 +252,7 @@ def constArray(width,height,value):
     return arr
 
 def main():
-    templateRaster = Raster('SampleData/0003L_19950623_dem.tif')
+    templateRaster = Raster('SampleData/sample.tif')
 
     # Create rasters with the following parameters
     max = 980
@@ -275,7 +263,7 @@ def main():
     squaregrid = 3
     spacing = 100
 
-    folder = 'output'
+    folder = 'output/'
 
     try:
         os.makedirs(folder)
@@ -285,31 +273,36 @@ def main():
     topoffset = (pxheight + spacing) * templateRaster.cellHeight
     leftoffset = (pxwidth + spacing) * templateRaster.cellWidth
 
-    # array2rastercsv(constArray(pxwidth, pxheight, 900), folder + 'const900', templateRaster, topoffset, leftoffset)
-    # array2rastercsv(constArray(pxwidth, pxheight, 950), folder + 'const950', templateRaster, topoffset, leftoffset)
-    # array2rastercsv(constArray(pxwidth, pxheight, 970), folder + 'const970', templateRaster, topoffset, leftoffset)
-    # array2rastercsv(constArray(pxwidth, pxheight, 980), folder + 'const980', templateRaster, topoffset, leftoffset)
-    # array2rastercsv(constArray(pxwidth, pxheight, 990), folder + 'const990', templateRaster, topoffset, leftoffset)
-    #
-    # array2rastercsv(slopeyArray(pxwidth, pxheight, max, min), '{0}Slopey{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
-    # array2rastercsv(slopeyArray(pxwidth, pxheight, min, max), '{0}Slopey{1}-{2}'.format(folder, max, min), templateRaster, topoffset, leftoffset)
-    #
-    # array2rastercsv(tiltySlopeyArray(pxwidth, pxheight, max, min, "N"), '{0}AngledSlopey{1}-{2}{3}'.format(folder, min, max, "N"), templateRaster, topoffset, leftoffset)
-    # array2rastercsv(tiltySlopeyArray(pxwidth, pxheight, max, min, "E"), '{0}AngledSlopey{1}-{2}{3}'.format(folder, min, max, "E"), templateRaster, topoffset, leftoffset)
-    # array2rastercsv(tiltySlopeyArray(pxwidth, pxheight, max, min, "S"), '{0}AngledSlopey{1}-{2}{3}'.format(folder, min, max, "S"), templateRaster, topoffset, leftoffset)
-    # array2rastercsv(tiltySlopeyArray(pxwidth, pxheight, max, min, "W"), '{0}AngledSlopey{1}-{2}{3}'.format(folder, min, max, "W"), templateRaster, topoffset, leftoffset)
-    #
-    # array2rastercsv(squareHillArray(pxwidth, pxheight, max, min), '{0}SquareHill{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
-    # array2rastercsv(squareHillArray(pxwidth, pxheight, min, max), '{0}SquareValley{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
-    #
-    # array2rastercsv(sineArray(pxwidth, pxheight, max, min), '{0}SinWave{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
-    # array2rastercsv(sineArray(pxwidth, pxheight, min, max), '{0}SinWaveInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
-    #
-    # array2rastercsv(sineArray(pxwidth, pxheight, max, min, math.pi/2), '{0}CosWave{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
-    # array2rastercsv(sineArray(pxwidth, pxheight, min, max, math.pi/2), '{0}CosWaveInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+    array2rastercsv(checkerBoardArray(pxwidth, pxheight, min, max), '{0}Checkerboard{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+
+    array2rastercsv(constArray(pxwidth, pxheight, 900), folder + 'const900', templateRaster, topoffset, leftoffset)
+    array2rastercsv(constArray(pxwidth, pxheight, 950), folder + 'const950', templateRaster, topoffset, leftoffset)
+    array2rastercsv(constArray(pxwidth, pxheight, 970), folder + 'const970', templateRaster, topoffset, leftoffset)
+    array2rastercsv(constArray(pxwidth, pxheight, 980), folder + 'const980', templateRaster, topoffset, leftoffset)
+    array2rastercsv(constArray(pxwidth, pxheight, 990), folder + 'const990', templateRaster, topoffset, leftoffset)
+
+    array2rastercsv(slopeyArray(pxwidth, pxheight, max, min), '{0}Slopey{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+    array2rastercsv(slopeyArray(pxwidth, pxheight, min, max), '{0}Slopey{1}-{2}'.format(folder, max, min), templateRaster, topoffset, leftoffset)
+
+    array2rastercsv(tiltySlopeyArray(pxwidth, pxheight, max, min, "N"), '{0}AngledSlopey{1}-{2}{3}'.format(folder, min, max, "N"), templateRaster, topoffset, leftoffset)
+    array2rastercsv(tiltySlopeyArray(pxwidth, pxheight, max, min, "E"), '{0}AngledSlopey{1}-{2}{3}'.format(folder, min, max, "E"), templateRaster, topoffset, leftoffset)
+    array2rastercsv(tiltySlopeyArray(pxwidth, pxheight, max, min, "S"), '{0}AngledSlopey{1}-{2}{3}'.format(folder, min, max, "S"), templateRaster, topoffset, leftoffset)
+    array2rastercsv(tiltySlopeyArray(pxwidth, pxheight, max, min, "W"), '{0}AngledSlopey{1}-{2}{3}'.format(folder, min, max, "W"), templateRaster, topoffset, leftoffset)
+
+    array2rastercsv(squareHillArray(pxwidth, pxheight, max, min), '{0}SquareHill{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+    array2rastercsv(squareHillArray(pxwidth, pxheight, min, max), '{0}SquareValley{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+
+    array2rastercsv(sineArray(pxwidth, pxheight, max, min), '{0}SinWave{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+    array2rastercsv(sineArray(pxwidth, pxheight, min, max), '{0}SinWaveInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+
+    array2rastercsv(sineArray(pxwidth, pxheight, max, min, math.pi/2), '{0}CosWave{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+    array2rastercsv(sineArray(pxwidth, pxheight, min, max, math.pi/2), '{0}CosWaveInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+
+    array2rastercsv(sawtoothArray(pxwidth, pxheight, min, max), '{0}SawTooth{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+    array2rastercsv(sawtoothArray(pxwidth, pxheight, max, min), '{0}SawToothInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
 
     array2rastercsv(doubleSawtoothArray(pxwidth, pxheight, min, max), '{0}DoubleSawTooth{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
-    # array2rastercsv(sawtoothArray(pxwidth, pxheight, max, min), '{0}SawToothInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+    array2rastercsv(doubleSawtoothArray(pxwidth, pxheight, max, min), '{0}DoubleSawToothInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
 
 if __name__ == '__main__':
     # parse command line options
