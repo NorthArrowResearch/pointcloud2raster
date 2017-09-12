@@ -19,22 +19,31 @@ def main():
                 splitext = os.path.splitext(file)
                 templatefile = os.path.join(inputdir, file)
                 inputcsv = os.path.join(inputdir, splitext[0] + ".csv")
+                inputcsvcloud = os.path.join(inputdir, splitext[0] + "_cloud.csv")
+                if not os.path.isfile(inputcsvcloud):
+                    inputcsvcloud = inputcsv
+
                 outputfile = os.path.join(outputdir, splitext[0] + "_" + method + "_output" + splitext[1])
 
-                GridRaster(inputcsv, outputfile, None, 1, 2, 3, method, templatefile)
+                GridRaster(inputcsvcloud, outputfile, None, 1, 2, 3, method, templatefile)
 
                 # Now do a test
                 orig = Raster(filepath=templatefile)
                 output = Raster(filepath=outputfile)
 
+                # Don't do a subtract if we aren't aligned.
                 if orig.left != output.left:
                     print "Left does not match"
-                if orig.rows != output.rows:
-                    print "Rows do not match"
-                if orig.cols != output.cols:
-                    print "Colums does not match"
+                    continue
                 if orig.top != output.top:
                     print "Top does not match"
+                    continue
+                if orig.rows != output.rows:
+                    print "Rows do not match"
+                    continue
+                if orig.cols != output.cols:
+                    print "Colunms do not match"
+                    continue
 
                 subtraction = os.path.join(outputdir, splitext[0] + "_" + method + "_output_SUBTRACT" + splitext[1])
                 raster = Raster(filepath=templatefile)
