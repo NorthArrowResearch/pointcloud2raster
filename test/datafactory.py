@@ -10,8 +10,15 @@ import random
 import argparse
 # this allows GDAL to throw Python Exceptions
 
-proj = 'PROJCS["NAD_1983_2011_StatePlane_Arizona_Central_FIPS_0202",GEOGCS["GCS_NAD_1983_2011",DATUM["NAD_1983_2011",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["false_easting",213360.0],PARAMETER["false_northing",0.0],PARAMETER["central_meridian",-111.9166666666667],PARAMETER["scale_factor",0.9999],PARAMETER["latitude_of_origin",31.0],UNIT["Meter",1.0]]'
 
+"""
+
+    This file creates a bunch of rasters with interesting patterns that we can use for testing purposes
+
+"""
+
+
+proj = 'PROJCS["NAD_1983_2011_StatePlane_Arizona_Central_FIPS_0202",GEOGCS["GCS_NAD_1983_2011",DATUM["NAD_1983_2011",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["false_easting",213360.0],PARAMETER["false_northing",0.0],PARAMETER["central_meridian",-111.9166666666667],PARAMETER["scale_factor",0.9999],PARAMETER["latitude_of_origin",31.0],UNIT["Meter",1.0]]'
 
 def array2rastercsv(array, outName, templateRaster, yoffset=0, xoffset=0, DataType=gdal.GDT_Float32):
     """
@@ -252,7 +259,7 @@ def constArray(width,height,value):
     return arr
 
 def main():
-    templateRaster = Raster('SampleData/sample.tif')
+    templateRaster = Raster('data/template.tif')
 
     # Create rasters with the following parameters
     max = 980
@@ -263,7 +270,7 @@ def main():
     squaregrid = 3
     spacing = 100
 
-    folder = 'output/'
+    folder = 'data/rasters/'
 
     try:
         os.makedirs(folder)
@@ -295,8 +302,8 @@ def main():
     array2rastercsv(sineArray(pxwidth, pxheight, max, min), '{0}SinWave{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
     array2rastercsv(sineArray(pxwidth, pxheight, min, max), '{0}SinWaveInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
 
-    array2rastercsv(sineArray(pxwidth, pxheight, max, min, math.pi/2), '{0}CosWave{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
-    array2rastercsv(sineArray(pxwidth, pxheight, min, max, math.pi/2), '{0}CosWaveInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+    array2rastercsv(sineArray(pxwidth, pxheight, max, min, math.pi / 2), '{0}CosWave{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
+    array2rastercsv(sineArray(pxwidth, pxheight, min, max, math.pi / 2), '{0}CosWaveInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
 
     array2rastercsv(sawtoothArray(pxwidth, pxheight, min, max), '{0}SawTooth{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)
     array2rastercsv(sawtoothArray(pxwidth, pxheight, max, min), '{0}SawToothInv{1}-{2}'.format(folder, min, max), templateRaster, topoffset, leftoffset)

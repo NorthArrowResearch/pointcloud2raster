@@ -3,10 +3,15 @@ from pointcloud2raster.pointcloud2raster import GridRaster
 from pointcloud2raster.raster import Raster
 import os
 
-def main():
 
-    inputdir = os.path.join(os.path.dirname(__file__ ), "datafactory", "output")
-    outputdir = os.path.join(os.path.dirname(__file__ ), "datafactory", "output_test")
+
+def main():
+    """
+    This test script runs everything in the data/rasters folder through the tool so we can see what's going on
+    :return:
+    """
+    inputdir = os.path.join(os.path.dirname(__file__ ), "data", "rasters")
+    outputdir = os.path.join(os.path.dirname(__file__ ), "data", "output")
 
     try:
         os.makedirs(outputdir)
