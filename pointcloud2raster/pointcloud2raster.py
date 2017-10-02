@@ -90,7 +90,7 @@ def main():
 
     parser.add_argument('--cellsize',
                         help = 'Cell size to use. Use this if not a templateraster',
-                        type = int)
+                        type = float)
 
     parser.add_argument('--xfield',
                         help = 'column number to use for X (defaults to 1)',
