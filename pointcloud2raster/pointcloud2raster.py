@@ -108,8 +108,8 @@ def main():
                         type=int)
 
     parser.add_argument('--method',
-                        help='Method for griddata. One of "cubic", "linear", "nearest" Default: cubic',
-                        default="cubic",
+                        help='Method for griddata. One of "cubic", "linear", "nearest" Default: linear',
+                        default="linear",
                         type=str)
     parser.add_argument('--templateraster',
                         help='Template Raster to use for meta values',
