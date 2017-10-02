@@ -65,8 +65,6 @@ def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, metho
     newArray = griddata((my_data[:,1], my_data[:,0]), my_data[:,2], (newAxes[0]+ ch/2,newAxes[1] + cw/2), method=method, fill_value=np.nan)
 
     Log.info("Writing Output Raster...")
-    extsplit = os.path.splitext(sOutputRaster)
-    newpath = os.path.join(os.path.dirname(sOutputRaster), extsplit[0] + extsplit[1])
 
     # Our top and left may not match the template raster so make sure to set those explicitly
     raster.top = top
@@ -74,7 +72,7 @@ def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, metho
 
     # Set the array and write the file to disk
     raster.setArray(newArray)
-    raster.write(newpath)
+    raster.write(sOutputRaster)
 
     Log.info("Done. Output file written: {}".format(sOutputRaster))
 
