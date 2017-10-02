@@ -123,8 +123,12 @@ def main():
     log = Logger("Program")
 
     try:
+        templateRaster = None
+        if args.templateraster:
+            templateRaster = args.templateraster.name
+
         # Now kick things off
-        GridRaster(args.csvfile.name, args.outputRaster, args.cellsize, args.xfield, args.yfield, args.zfield, args.method, args.templateraster.name)
+        GridRaster(args.csvfile.name, args.outputRaster, args.cellsize, args.xfield, args.yfield, args.zfield, args.method, templateRaster)
     except AssertionError as e:
         log.error("Assertion Error", e)
         sys.exit(0)
