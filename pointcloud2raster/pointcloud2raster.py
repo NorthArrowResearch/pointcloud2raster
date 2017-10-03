@@ -1,9 +1,9 @@
-import os
 import sys
 import argparse
 from loghelper import Logger
 import numpy as np
-from scipy.interpolate import griddata
+from scipy.interpolate import LinearNDInterpolator
+from scipy.spatial import Delaunay
 import gdal
 import math
 from raster import Raster
@@ -11,9 +11,6 @@ gdal.UseExceptions()
 
 def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, method, templateRaster):
     """
-    Read here for more about gridding data with scipy
-    https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html
-
     :param gdalWarpPath:
     :param sInputCSV:
     :param sOutputRaster:
@@ -62,7 +59,24 @@ def GridRaster(sInputCSV, sOutputRaster, cellsize, xfield, yfield, zfield, metho
     # The third parameter are the two new grids, each containing the X and Y values we want to have, adjusted for cell
     # centers.
     Log.info("Gridding irregular data...")
-    newArray = griddata((my_data[:,1], my_data[:,0]), my_data[:,2], (newAxes[0]+ ch/2,newAxes[1] + cw/2), method=method, fill_value=np.nan)
+
+    # We need to center the points around the origin so that QHull doesn't freak out.
+    # -------------------------------------------------
+    # https://stackoverflow.com/questions/30868399/how-to-include-all-points-into-error-less-triangulation-mesh-with-scipy-spatial
+    points = my_data[:, [0, 1]]
+    origin_offset = points.mean(axis=0)
+
+    # QHull option QJ ensures we don't throw away any points
+    Log.info("Creating Delaunay Triangles...")
+    tri = Delaunay(points-origin_offset, qhull_options="QJ")
+
+    Log.info("Creating Interpolator...")
+    interpolationfunction = LinearNDInterpolator(tri, my_data[:, 2], fill_value=np.nan)
+
+    # Now we have our interpolation function. Throw a grid of XY coords at it (not forgetting to offset)
+    Log.info("Interpolating Points...")
+    newArray = interpolationfunction((newAxes[1] - origin_offset[0] + cw/2,
+                                      newAxes[0] - origin_offset[1] + ch/2))
 
     Log.info("Writing Output Raster...")
 
