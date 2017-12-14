@@ -10,7 +10,7 @@ import re
 from setuptools import setup
 
 install_requires = [
-    'argparse', 'numpy'
+    'argparse', 'numpy', 'pytz'
 ]
 
 version = re.search(
